@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -12,7 +13,14 @@ namespace XmlParser
         public string Content { get; set; }
         public ITagContent Subcontent { get; set; }
 
+        public List<Atribute> Atributes { get; set; }
+
         public string Data { get; set; }
+
+        public Tag()
+        {
+            Atributes = new List<Atribute>();
+        }
 
         public static void Parse(string text)
         {
@@ -22,8 +30,6 @@ namespace XmlParser
             }
 
             text = text.Trim();
-
-            text = NormalizeText(text);
 
             using (StreamWriter sw = new StreamWriter("out.txt"))
             {
@@ -38,12 +44,14 @@ namespace XmlParser
                 string textScope;
 
                 const string tagPattern = @"^\<(\s*|\/)?(\w[\w\W]+?)(\s.*?)?\>";
-                // 1 группа - закрывающая черта
+                // 0 группа - полный текст
                 const int FULL_TEXT_GROUP = 0;
-                // 2 группа - название тега
+                // 1 группа - закрывающая черта
                 const int CLOSING_SLASH_GROUP = 1;
-                // 3 группа - атрибуты
+                // 2 группа - название тега
                 const int TAG_NAME_GROUP = 2;
+                // 3 группа - атрибуты
+                const int TAG_ATRIBUTES_GROUP = 3;
 
                 var tagRegexp = new Regex(tagPattern);
 
@@ -67,14 +75,41 @@ namespace XmlParser
                         }
                         else
                         {
+                            if (lastTag.Name.ToUpper() == tagName.ToUpper())
+                            {
+                                throw new Exception("Открывающий и закрывающий теги имеют одинаковое имя в разном регистре");
+                            }
                             throw new Exception("Неправильная структкра XML");
                         }
                     }
                     else
                     {
-                        //TODO: Обработка атрибутов
+                        if (tagName.ToUpper().StartsWith("XML"))
+                        {
+                            throw new Exception("Имя тега не должно начинаться с XML");
+                        }
 
                         var tag = new Tag() { Name = tagName };
+
+                        var atributesRegexp = new Regex(@"(\w+)\s*=\s*[""'](.*?)[""']");
+
+                        var atributesMatch = tagMatch.Groups[TAG_ATRIBUTES_GROUP].Value;
+
+                        var rawAtributesCollection = atributesRegexp.Matches(atributesMatch);
+
+                        foreach (Match atributeText in rawAtributesCollection)
+                        {
+                            var atribute = Atribute.Parse(atributeText.Value);
+
+                            var sameStoredAttribute = tag.Atributes.FirstOrDefault(a => a.Name == atribute.Name);
+
+                            if (sameStoredAttribute != null)
+                            {
+                                throw new Exception("Тег уже имеет атрибут с таким же названием");
+                            }
+                            tag.Atributes.Add(atribute);
+                        }
+
 
                         //TODO: Тут возможна перезапись - нужно реализовывать объект
                         if (processedTags.Count > 0)
@@ -106,27 +141,6 @@ namespace XmlParser
             var dataMatch = dataExtractRegexp.Match(text);
             var data = dataMatch.Groups[1].Value;
             return data;
-        }
-
-        /// <summary>
-        /// Формирует одну строку из многострочного текста, удаляя лишние пробелы, переводы строки и т.д.
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        /// <remarks>Находит свободное пространство между концов тегов и очищает его</remarks>
-        private static string NormalizeText(string text)
-        {
-            if (text is null)
-            {
-                throw new ArgumentNullException(nameof(text));
-            }
-
-            const string tagPattern = @"[\r\n]+\s*\<";
-            var regex = new Regex(tagPattern);
-            string target = "<";
-            string result = regex.Replace(text, target);
-
-            return result;
         }
     }
 }

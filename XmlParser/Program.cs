@@ -7,13 +7,28 @@ namespace XmlParser
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
-            using (StreamReader sr = new StreamReader("ex.txt"))
+            Console.Write("Введите путь до xml файла: ");
+            var path = Console.ReadLine();
+            string text;
+            using (var sr = new StreamReader(path))
             {
-                var text = sr.ReadToEnd();
-                Tag.Parse(text);
-
+                text = sr.ReadToEnd();
             }
+            try
+            {
+                Document.Parse(text);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Документ прошел проверку");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Ошибка");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine(e.Message);
+            }
+            Console.ReadLine();
         }
     }
 }
