@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using XmlParser.Exceptions;
 
 namespace XmlParser
 {
@@ -30,12 +31,7 @@ namespace XmlParser
             }
 
             text = text.Trim();
-
-            using (StreamWriter sw = new StreamWriter("out.txt"))
-            {
-                sw.WriteLine(text);
-            }
-
+            int position = 0;
 
             var processedTags = new Stack<Tag>();
             while (text.Length > 0)
@@ -77,37 +73,29 @@ namespace XmlParser
                         {
                             if (lastTag.Name.ToUpper() == tagName.ToUpper())
                             {
-                                throw new Exception("Открывающий и закрывающий теги имеют одинаковое имя в разном регистре");
+                                throw new TagParseExceprion("Открывающий и закрывающий теги имеют одинаковое имя в разном регистре", position);
                             }
-                            throw new Exception("Неправильная структкра XML");
+                            throw new TagParseExceprion("Неправильная структкра XML", position);
                         }
                     }
                     else
                     {
-                        if (tagName.ToUpper().StartsWith("XML"))
-                        {
-                            throw new Exception("Имя тега не должно начинаться с XML");
-                        }
-
                         var tag = new Tag() { Name = tagName };
 
-                        var atributesRegexp = new Regex(@"(\w+)\s*=\s*[""'](.*?)[""']");
-
-                        var atributesMatch = tagMatch.Groups[TAG_ATRIBUTES_GROUP].Value;
-
-                        var rawAtributesCollection = atributesRegexp.Matches(atributesMatch);
-
-                        foreach (Match atributeText in rawAtributesCollection)
+                        if (tagName.ToUpper().StartsWith("XML"))
                         {
-                            var atribute = Atribute.Parse(atributeText.Value);
+                            throw new TagParseExceprion("Имя тега не должно начинаться с XML", position);
+                        }
 
-                            var sameStoredAttribute = tag.Atributes.FirstOrDefault(a => a.Name == atribute.Name);
+                        var atributesString = tagMatch.Groups[TAG_ATRIBUTES_GROUP].Value;
 
-                            if (sameStoredAttribute != null)
-                            {
-                                throw new Exception("Тег уже имеет атрибут с таким же названием");
-                            }
-                            tag.Atributes.Add(atribute);
+                        try
+                        {
+                            AddAtributes(tag, atributesString);
+                        }
+                        catch (AttributeParseException e)
+                        {
+                            throw new ParsingException("Ошибка при разборе документа.", position, e);
                         }
 
 
@@ -131,6 +119,42 @@ namespace XmlParser
                 }
 
                 text = text.Substring(textScope.Length);
+                position += textScope.Length;
+            }
+        }
+
+        private static void AddAtributes(Tag tag, string atributesString)
+        {
+            var atributesRegexp = new Regex(@"(\w+)\s*=\s*[""'](.*?)[""']");
+
+            var rawAtributesCollection = atributesRegexp.Matches(atributesString);
+
+            foreach (Match atributeText in rawAtributesCollection)
+            {
+                Atribute attribute;
+                try
+                {
+                    attribute = Atribute.Parse(atributeText.Value);
+                }
+                catch (Exception e)
+                {
+                    throw new AttributeParseException(e.Message, tag);
+                }
+
+                atributesString = atributesString.Replace(atributeText.Value, "").Trim();
+
+                var sameStoredAttribute = tag.Atributes.FirstOrDefault(a => a.Name == attribute.Name);
+
+                if (sameStoredAttribute != null)
+                {
+                    throw new AttributeParseException("Тег уже имеет атрибут с таким же названием", tag);
+                }
+                tag.Atributes.Add(attribute);
+            }
+
+            if (atributesString != "")
+            {
+                throw new AttributeParseException("Тег имеет непраильную структуту атрибутов", tag);
             }
         }
 

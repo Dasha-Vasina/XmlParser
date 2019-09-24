@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using XmlParser.Exceptions;
 
 namespace XmlParser
 {
@@ -20,6 +21,25 @@ namespace XmlParser
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Документ прошел проверку");
                 Console.ForegroundColor = ConsoleColor.White;
+            }
+            catch (TagParseExceprion e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Ошибка парсинга тега");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"Ошибка {e.Message}");
+                Console.WriteLine($"Позиция {e.Position}");
+            }
+            catch(ParsingException parsingEx)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(parsingEx.Message);
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"Позиция {parsingEx.Position}");
+                if (parsingEx.InnerException != null)
+                {
+                    Console.WriteLine(parsingEx.InnerException.Message);
+                }
             }
             catch (Exception e)
             {
