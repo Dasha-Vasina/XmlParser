@@ -33,6 +33,11 @@ namespace XmlParser
             text = text.Trim();
             int position = 0;
 
+            using (var sw = new StreamWriter("out.txt"))
+            {
+                sw.WriteLine(text);
+            }
+
             var processedTags = new Stack<Tag>();
             while (text.Length > 0)
             {
